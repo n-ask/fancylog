@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img alt="fancylog: An extremely fast golang logger" src="./assets/fancylog.png" width=300>
+    <img alt="fancylog: An extremely fast golang logger" src="./assets/fancylog.png" width="300">
   </picture>
 </p>
 <p>
