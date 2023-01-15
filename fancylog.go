@@ -369,10 +369,11 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		b.AppendByte('\n')
 	}
-	// Flush buffer to output
-	_, _ = l.out.Write(b.Bytes())
+
 	if isErr {
 		_, _ = l.err.Write(b.Bytes())
+	} else {
+		_, _ = l.out.Write(b.Bytes())
 	}
 
 	b.Free()
@@ -435,10 +436,11 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 		}
 	}
 	b.AppendByte('\n')
-	// Flush buffer to output
-	_, _ = l.out.Write(b.Bytes())
+
 	if isErr {
 		_, _ = l.err.Write(b.Bytes())
+	} else {
+		_, _ = l.out.Write(b.Bytes())
 	}
 
 	b.Free()
