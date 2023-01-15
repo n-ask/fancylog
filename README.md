@@ -7,3 +7,8 @@
 fancylog was built in an effort to create stylized logs that was fast and
 usable across all the different golang codebases we are using at NASK INC. 
 </p>
+<p align="center">
+  <picture>
+    <img alt="fancylog:example" src="./assets/fancylog.gif" width="700">
+  </picture>
+</p>
