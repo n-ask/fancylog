@@ -40,23 +40,48 @@ type Logger struct {
 // Color will be the color applied to the log
 // File flag set to true will display code trace
 type Prefix struct {
-	Text  []byte
+	Text  *prefixText
 	Color Color
 	File  bool
 }
 
+// prefixText struct to hold the values of the prefixes to be used, and the tail size to add spaces to the end
+// of the prefix
+type prefixText struct {
+	value    []byte
+	tailSize int
+}
+
 var (
-	plainFatal = []byte("[FATAL] ")
-	plainError = []byte("[ERROR] ")
-	plainWarn  = []byte("[WARN]  ")
-	plainInfo  = []byte("[INFO]  ")
-	plainDebug = []byte("[DEBUG] ")
-	plainTrace = []byte("[TRACE] ")
+	plainFatal = &prefixText{
+		value:    []byte("[FATAL]"),
+		tailSize: 0,
+	}
+	plainError = &prefixText{
+		value:    []byte("[ERROR]"),
+		tailSize: 0,
+	}
+	plainWarn = &prefixText{
+		value:    []byte("[WARN]"),
+		tailSize: 1,
+	}
+	plainInfo = &prefixText{
+		value:    []byte("[INFO]"),
+		tailSize: 1,
+	}
+	plainDebug = &prefixText{
+		value:    []byte("[DEBUG]"),
+		tailSize: 0,
+	}
+	plainTrace = &prefixText{
+		value:    []byte("[TRACE]"),
+		tailSize: 0,
+	}
 
 	// FatalPrefix show fatal prefix
 	FatalPrefix = Prefix{
 		Text:  plainFatal,
-		Color: ColorRed,
+		Color: ColorFatalRed,
 		File:  true,
 	}
 
@@ -91,6 +116,8 @@ var (
 		Color: ColorPurple,
 		File:  true,
 	}
+
+	maxNameSize int = 0
 )
 
 func defaultTimeFn() (time.Time, string) {
@@ -123,6 +150,9 @@ func NewWithError(out FdWriter, err FdWriter) *Logger {
 // NewWithName {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
 // automatically detect terminal coloring support
 func NewWithName(name string, out FdWriter) *Logger {
+	if maxNameSize < len(name) {
+		maxNameSize = len(name)
+	}
 	return &Logger{
 		name:      name,
 		color:     terminal.IsTerminal(int(out.Fd())),
@@ -135,6 +165,9 @@ func NewWithName(name string, out FdWriter) *Logger {
 // NewWithNameAndError {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
 // automatically detect terminal coloring support
 func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
+	if maxNameSize < len(name) {
+		maxNameSize = len(name)
+	}
 	return &Logger{
 		name:      name,
 		color:     terminal.IsTerminal(int(out.Fd())),
@@ -256,11 +289,17 @@ func (l *Logger) getTimeFunc() TimestampFunc {
 	return *l.timestampFn
 }
 
-func (l *Logger) writeLog(p Prefix, b ColorLogger) {
-	if l.color {
-		b.AppendWithColor(p.Text, p.Color)
-	} else {
-		b.Append(p.Text)
+func (l *Logger) writePrefix(p Prefix, b ColorLogger) {
+	if p.Text != nil {
+		if l.color {
+			b.AppendWithColor(p.Text.value, p.Color)
+		} else {
+			b.Append(p.Text.value)
+		}
+		for i := 0; i < p.Text.tailSize; i++ {
+			b.AppendSpace()
+		}
+		b.AppendSpace()
 	}
 }
 
@@ -352,8 +391,18 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 	if len(l.name) > 0 {
 		l.writeName(b)
 	}
+	if len(l.name) != maxNameSize {
+		for i := 0; i < (maxNameSize - len(l.name)); i++ {
+			b.AppendSpace()
+		}
+		if len(l.name) == 0 {
+			for i := 0; i < 3; i++ {
+				b.AppendSpace()
+			}
+		}
+	}
 
-	l.writeLog(prefix, b)
+	l.writePrefix(prefix, b)
 
 	// Check if the log require timestamping
 	if l.timestamp {
@@ -403,8 +452,18 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 	if len(l.name) > 0 {
 		l.writeName(b)
 	}
+	if len(l.name) != maxNameSize {
+		for i := 0; i < (maxNameSize - len(l.name)); i++ {
+			b.AppendSpace()
+		}
+		if len(l.name) == 0 {
+			for i := 0; i < 3; i++ {
+				b.AppendSpace()
+			}
+		}
+	}
 
-	l.writeLog(prefix, b)
+	l.writePrefix(prefix, b)
 
 	// Check if the log require timestamping
 	// Check if the log require timestamping

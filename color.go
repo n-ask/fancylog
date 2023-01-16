@@ -29,6 +29,7 @@ var (
 	ColorCyan   Color = []byte("\u001B[0;36m")
 	ColorGray   Color = []byte("\u001B[0;37m")
 
+	ColorFatalRed    Color = []byte("\u001b[1m\u001b[31m\u001b[7m")
 	ColorDarkOrange  Color = []byte("\u001b[1m\u001b[38;5;202m")
 	ColorBrightWhite Color = []byte("\u001b[1m\u001b[38;5;255m")
 	ColorNicePurple  Color = []byte("\u001b[1m\u001b[38;5;99m")
