@@ -1,4 +1,4 @@
-module fancylog
+module github.com/n-ask/fancylog
 
 go 1.19
 
