@@ -35,6 +35,21 @@ type Logger struct {
 	mu             sync.Mutex
 }
 
+type Level string
+
+func (l Level) toPrefix() []byte {
+	return []byte("[" + l + "]")
+}
+
+const (
+	Fatal Level = "FATAL"
+	Error Level = "ERROR"
+	Warn  Level = "WARN"
+	Info  Level = "INFO"
+	Debug Level = "DEBUG"
+	Trace Level = "TRACE"
+)
+
 // Prefix struct define plain and color byte
 // Text will prefix text to include in the log
 // Color will be the color applied to the log
@@ -48,33 +63,33 @@ type Prefix struct {
 // prefixText struct to hold the values of the prefixes to be used, and the tail size to add spaces to the end
 // of the prefix
 type prefixText struct {
-	value    []byte
+	value    Level
 	tailSize int
 }
 
 var (
 	plainFatal = &prefixText{
-		value:    []byte("[FATAL]"),
+		value:    Fatal,
 		tailSize: 0,
 	}
 	plainError = &prefixText{
-		value:    []byte("[ERROR]"),
+		value:    Error,
 		tailSize: 0,
 	}
 	plainWarn = &prefixText{
-		value:    []byte("[WARN]"),
+		value:    Warn,
 		tailSize: 1,
 	}
 	plainInfo = &prefixText{
-		value:    []byte("[INFO]"),
+		value:    Info,
 		tailSize: 1,
 	}
 	plainDebug = &prefixText{
-		value:    []byte("[DEBUG]"),
+		value:    Debug,
 		tailSize: 0,
 	}
 	plainTrace = &prefixText{
-		value:    []byte("[TRACE]"),
+		value:    Trace,
 		tailSize: 0,
 	}
 
@@ -292,9 +307,9 @@ func (l *Logger) getTimeFunc() TimestampFunc {
 func (l *Logger) writePrefix(p Prefix, b ColorLogger) {
 	if p.Text != nil {
 		if l.color {
-			b.AppendWithColor(p.Text.value, p.Color)
+			b.AppendWithColor(p.Text.value.toPrefix(), p.Color)
 		} else {
-			b.Append(p.Text.value)
+			b.Append(p.Text.value.toPrefix())
 		}
 		for i := 0; i < p.Text.tailSize; i++ {
 			b.AppendSpace()
