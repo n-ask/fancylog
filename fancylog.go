@@ -5,8 +5,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"os"
-	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -67,6 +67,7 @@ type prefixText struct {
 	tailSize int
 }
 
+// TODO make this a map and get rid of tailSize
 var (
 	plainFatal = &prefixText{
 		value:    Fatal,
@@ -104,7 +105,6 @@ var (
 	ErrorPrefix = Prefix{
 		Text:  plainError,
 		Color: ColorRed,
-		File:  true,
 	}
 
 	// WarnPrefix show warn prefix
@@ -123,13 +123,13 @@ var (
 	TracePrefix = Prefix{
 		Text:  plainTrace,
 		Color: ColorCyan,
+		File:  true,
 	}
 
 	// DebugPrefix show info prefix
 	DebugPrefix = Prefix{
 		Text:  plainDebug,
 		Color: ColorPurple,
-		File:  true,
 	}
 
 	maxNameSize int = 0
@@ -147,6 +147,7 @@ func New(out FdWriter) *Logger {
 		out:       out,
 		err:       out,
 		timestamp: true,
+		trace:     true,
 	}
 }
 
@@ -159,6 +160,7 @@ func NewWithError(out FdWriter, err FdWriter) *Logger {
 		out:       out,
 		err:       err,
 		timestamp: true,
+		trace:     true,
 	}
 }
 
@@ -174,6 +176,7 @@ func NewWithName(name string, out FdWriter) *Logger {
 		out:       out,
 		err:       out,
 		timestamp: true,
+		trace:     true,
 	}
 }
 
@@ -189,6 +192,7 @@ func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
 		out:       out,
 		err:       err,
 		timestamp: true,
+		trace:     true,
 	}
 }
 
@@ -350,33 +354,30 @@ func (l *Logger) writeName(b ColorLogger) {
 const DepthSkip = 3
 
 // getFile produces the stack trace given the caller and depth
-func (l *Logger) getFile() (file, fn string, line int) {
-	var ok bool
-	var pc uintptr
+func (l *Logger) getStackTrace() string {
 	// Get the caller filename and line
-	if pc, file, line, ok = runtime.Caller(DepthSkip); !ok {
-		file = "<unknown file>"
-		fn = "<unknown function>"
-		line = 0
-	} else {
-		file = filepath.Base(file)
-		fn = runtime.FuncForPC(pc).Name()
+	pcs := make([]uintptr, 20)
+	_ = runtime.Callers(2, pcs)
+	var stack strings.Builder
+	for _, i := range pcs {
+		if i != 0 {
+			f := runtime.FuncForPC(i)
+			if !strings.HasPrefix(strings.ToLower(f.Name()), "github.com/n-ask/fancylog") {
+				file, line := f.FileLine(i)
+				stack.WriteString(fmt.Sprintf("\t%s()\n\t\t %s:%d\n", f.Name(), file, line))
+			}
+		}
 	}
-	return
+	return stack.String()
 }
 
-func (l *Logger) writeStack(file, fn string, line int, b ColorLogger) {
+func (l *Logger) writeStack(stack string, b ColorLogger) {
 	// Print color start if enabled
 	if l.color {
 		b.Orange()
 	}
 	// Print filename and line
-	b.Append([]byte(fn))
-	b.AppendByte(':')
-	b.Append([]byte(file))
-	b.AppendByte(':')
-	b.AppendInt(int64(line))
-	b.AppendByte(' ')
+	b.Append([]byte(stack))
 	// Print color stop
 	if l.color {
 		b.Off()
@@ -391,13 +392,11 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 	}
 
 	// Temporary storage for file and line tracing
-	var file string
-	var line int
-	var fn string
+	var stack string
 
 	// Check if the specified prefix needs to be included with file logging
 	if prefix.File {
-		file, fn, line = l.getFile()
+		stack = l.getStackTrace()
 	}
 	b := NewColorLogger()
 	// Reset buffer so it start from the begining
@@ -423,15 +422,15 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 	if l.timestamp {
 		l.writeTime(b)
 	}
-	// Add caller filename and line if enabled
-	if prefix.File {
-		l.writeStack(file, fn, line, b)
-	}
 
 	// Print the actual string data from caller
 	b.Append([]byte(data))
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		b.AppendByte('\n')
+	}
+	// Add caller filename and line if enabled
+	if prefix.File {
+		l.writeStack(stack, b)
 	}
 
 	if isErr {
@@ -451,13 +450,11 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 	}
 
 	// Temporary storage for file and line tracing
-	var file string
-	var line int
-	var fn string
+	var stack string
 
 	// Check if the specified prefix needs to be included with file logging
 	if prefix.File {
-		file, fn, line = l.getFile()
+		stack = l.getStackTrace()
 	}
 
 	b := NewColorLogger()
@@ -486,11 +483,6 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 		l.writeTime(b)
 	}
 
-	// Add caller filename and line if enabled
-	if prefix.File {
-		l.writeStack(file, fn, line, b)
-	}
-
 	for key, val := range data {
 		if l.color {
 			b.Purple()
@@ -508,6 +500,11 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 		if l.color {
 			b.Off()
 		}
+	}
+	b.AppendByte('\n')
+	// Add caller filename and line if enabled
+	if prefix.File {
+		l.writeStack(stack, b)
 	}
 	b.AppendByte('\n')
 
