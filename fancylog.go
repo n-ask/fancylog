@@ -505,8 +505,8 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 	// Add caller filename and line if enabled
 	if prefix.File {
 		l.writeStack(stack, b)
+		b.AppendByte('\n')
 	}
-	b.AppendByte('\n')
 
 	if isErr {
 		_, _ = l.err.Write(b.Bytes())
