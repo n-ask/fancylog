@@ -4,8 +4,7 @@
   </picture>
 </p>
 <p>
-fancylog was built in an effort to create stylized logs that was fast and
-usable across all the different golang codebases we are using at NASK INC. 
+fancylog provides stylized, non-blocking log output. It is used across many Golang projects here at NASK. 
 </p>
 <p align="center">
   <picture>
