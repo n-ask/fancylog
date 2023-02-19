@@ -12,7 +12,7 @@ import (
 type loggingHandler struct {
 	writer  io.Writer
 	handler http.Handler
-	log     *fancylog.HttpLog
+	log     fancylog.FancyHttpLog
 }
 
 // responseLogger is wrapper of http.ResponseWriter that keeps track of its HTTP
@@ -130,7 +130,7 @@ func makeLogger(w http.ResponseWriter) (*responseLogger, http.ResponseWriter) {
 	})
 }
 
-func LoggingHandler(log *fancylog.HttpLog, out io.Writer, h http.Handler) http.Handler {
+func LoggingHandler(log fancylog.FancyHttpLog, out io.Writer, h http.Handler) http.Handler {
 	return loggingHandler{
 		writer:  out,
 		handler: h,
