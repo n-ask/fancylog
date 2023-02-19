@@ -114,7 +114,7 @@ func scanPrefixes() {
 }
 
 func defaultTimeFn() (time.Time, string) {
-	return time.Now(), time.RFC3339
+	return time.Now().UTC(), time.RFC3339
 }
 
 // New returns new Logger instance with predefined writer output and
