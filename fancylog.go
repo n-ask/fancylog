@@ -496,22 +496,80 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 	}
 
 	for key, val := range data {
-		if l.color {
-			b.Purple()
+		switch t := val.(type) {
+		case map[string]any:
+			if l.color {
+				b.Purple()
+			}
+			b.Append([]byte(key))
+			b.Append([]byte("["))
+			for k, v := range t {
+				b.AppendSpace()
+				if l.color {
+					b.Orange()
+				}
+				b.Append([]byte(k))
+				if l.color {
+					b.White()
+				}
+				b.Append([]byte(":"))
+				if l.color {
+					b.Cyan()
+				}
+				b.Append([]byte(fmt.Sprintf("%+v", v)))
+				b.AppendSpace()
+			}
+			if l.color {
+				b.Purple()
+			}
+			b.Append([]byte("]"))
+			b.AppendSpace()
+		case map[string][]string:
+			if l.color {
+				b.Purple()
+			}
+			b.Append([]byte(key))
+			b.Append([]byte("["))
+
+			for k, v := range t {
+				b.AppendSpace()
+				if l.color {
+					b.Orange()
+				}
+				b.Append([]byte(k))
+				if l.color {
+					b.White()
+				}
+				b.Append([]byte(":"))
+				if l.color {
+					b.Cyan()
+				}
+				b.Append([]byte(fmt.Sprintf("%+v", v)))
+				b.AppendSpace()
+			}
+			if l.color {
+				b.Purple()
+			}
+			b.Append([]byte("]"))
+			b.AppendSpace()
+		default:
+			if l.color {
+				b.Purple()
+			}
+			b.Append([]byte(key))
+			if l.color {
+				b.Orange()
+			}
+			b.Append([]byte("="))
+			if l.color {
+				b.Cyan()
+			}
+			b.Append([]byte(fmt.Sprintf("%+v", val)))
+			b.AppendSpace()
 		}
-		b.Append([]byte(key))
-		if l.color {
-			b.Orange()
-		}
-		b.Append([]byte("="))
-		if l.color {
-			b.Cyan()
-		}
-		b.Append([]byte(fmt.Sprintf("%+v", val)))
-		b.AppendSpace()
-		if l.color {
-			b.Off()
-		}
+	}
+	if l.color {
+		b.Off()
 	}
 	b.AppendByte('\n')
 	// Add caller filename and line if enabled

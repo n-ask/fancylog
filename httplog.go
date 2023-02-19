@@ -28,7 +28,7 @@ type HttpLog struct {
 	debugHeaders bool
 }
 
-var httpFormatter string = "<-%s->"
+var httpFormatter string = "{%s}"
 
 var (
 	getText = &PrefixText{
