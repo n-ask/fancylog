@@ -32,11 +32,11 @@ func (i IgnoreStmtPrefix) ContainsPrefix(sql string) bool {
 }
 
 type FancyPGLogger struct {
-	l       *fancylog.Logger
+	l       fancylog.FancyLogger
 	ignores *[]IgnoreStmtPrefix
 }
 
-func NewFancyPGLogger(l *fancylog.Logger) *FancyPGLogger {
+func NewFancyPGLogger(l fancylog.FancyLogger) *FancyPGLogger {
 	return &FancyPGLogger{l: l}
 }
 
