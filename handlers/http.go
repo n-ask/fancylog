@@ -86,23 +86,31 @@ func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	msg["status"] = logger.Status()
 	msg["size"] = logger.Size()
 
+	if h.log.DebugHeaders() {
+		headers := map[string][]string{}
+		for header, v := range r.Header {
+			headers[header] = v
+		}
+		msg["headers"] = headers
+	}
+
 	switch r.Method {
 	case http.MethodGet:
-		h.log.Get(msg, logger.status)
+		h.log.GetMethod(msg, logger.status)
 	case http.MethodConnect:
-		h.log.Connect(msg, logger.status)
+		h.log.ConnectMethod(msg, logger.status)
 	case http.MethodDelete:
-		h.log.Delete(msg, logger.status)
+		h.log.DeleteMethod(msg, logger.status)
 	case http.MethodHead:
-		h.log.Head(msg, logger.status)
+		h.log.HeadMethod(msg, logger.status)
 	case http.MethodOptions:
-		h.log.Options(msg, logger.status)
+		h.log.OptionsMethod(msg, logger.status)
 	case http.MethodPost:
-		h.log.Post(msg, logger.status)
+		h.log.PostMethod(msg, logger.status)
 	case http.MethodPut:
-		h.log.Put(msg, logger.status)
+		h.log.PutMethod(msg, logger.status)
 	case http.MethodTrace:
-		h.log.Trace(msg, logger.status)
+		h.log.TraceMethod(msg, logger.status)
 	default:
 		msg["method"] = r.Method
 		h.log.InfoMap(msg)

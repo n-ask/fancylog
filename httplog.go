@@ -4,22 +4,31 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+type FancyHttpLog interface {
+	FancyLogger
+	Methods
+
+	WithHeaders() FancyHttpLog
+	DebugHeaders() bool
+}
+
+type Methods interface {
+	GetMethod(a map[string]any, status int)
+	DeleteMethod(a map[string]any, status int)
+	ConnectMethod(a map[string]any, status int)
+	HeadMethod(a map[string]any, status int)
+	OptionsMethod(a map[string]any, status int)
+	PostMethod(a map[string]any, status int)
+	PutMethod(a map[string]any, status int)
+	TraceMethod(a map[string]any, status int)
+}
+
 type HttpLog struct {
 	FancyLogger
+	debugHeaders bool
 }
 
 var httpFormatter string = "<-%s->"
-
-type Methods interface {
-	Get(a map[string]any, status int)
-	Delete(a map[string]any, status int)
-	Connect(a map[string]any, status int)
-	Head(a map[string]any, status int)
-	Options(a map[string]any, status int)
-	Post(a map[string]any, status int)
-	Put(a map[string]any, status int)
-	Trace(a map[string]any, status int)
-}
 
 var (
 	getText = &PrefixText{
@@ -96,103 +105,122 @@ var (
 	}
 )
 
-func NewHttpLogger(out FdWriter) FancyLogger {
-	return &Logger{
-		color:     terminal.IsTerminal(int(out.Fd())),
-		out:       out,
-		err:       out,
-		timestamp: true,
-		trace:     true,
-
-		nameFormatter: &httpFormatter,
+func NewHttpLogger(out FdWriter) FancyHttpLog {
+	return &HttpLog{
+		FancyLogger: &Logger{
+			color:         terminal.IsTerminal(int(out.Fd())),
+			out:           out,
+			err:           out,
+			timestamp:     true,
+			trace:         true,
+			nameFormatter: &httpFormatter,
+		},
+		debugHeaders: false,
 	}
 }
 
-func NewHttpLoggerWithError(out FdWriter, err FdWriter) FancyLogger {
-	return &Logger{
-		color:     terminal.IsTerminal(int(out.Fd())),
-		out:       out,
-		err:       err,
-		timestamp: true,
-		trace:     true,
+func NewHttpLoggerWithError(out FdWriter, err FdWriter) FancyHttpLog {
+	return &HttpLog{
+		FancyLogger: &Logger{
+			color:     terminal.IsTerminal(int(out.Fd())),
+			out:       out,
+			err:       err,
+			timestamp: true,
+			trace:     true,
 
-		nameFormatter: &httpFormatter,
+			nameFormatter: &httpFormatter,
+		},
+		debugHeaders: false,
 	}
 }
-func NewHttpLoggerWithName(name string, out FdWriter) FancyLogger {
+func NewHttpLoggerWithName(name string, out FdWriter) FancyHttpLog {
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
-	return &Logger{
-		name:      name,
-		color:     terminal.IsTerminal(int(out.Fd())),
-		out:       out,
-		err:       out,
-		timestamp: true,
-		trace:     true,
+	return &HttpLog{
+		FancyLogger: &Logger{
+			name:      name,
+			color:     terminal.IsTerminal(int(out.Fd())),
+			out:       out,
+			err:       out,
+			timestamp: true,
+			trace:     true,
 
-		nameFormatter: &httpFormatter,
+			nameFormatter: &httpFormatter,
+		},
+		debugHeaders: false,
 	}
 }
 
-func NewHttpLoggerWithNameAndError(name string, out FdWriter, err FdWriter) FancyLogger {
+func NewHttpLoggerWithNameAndError(name string, out FdWriter, err FdWriter) FancyHttpLog {
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
-	return &Logger{
-		name:      name,
-		color:     terminal.IsTerminal(int(out.Fd())),
-		out:       out,
-		err:       err,
-		timestamp: true,
-		trace:     true,
-
-		nameFormatter: &httpFormatter,
+	return &HttpLog{
+		FancyLogger: &Logger{
+			name:          name,
+			color:         terminal.IsTerminal(int(out.Fd())),
+			out:           out,
+			err:           err,
+			timestamp:     true,
+			trace:         true,
+			nameFormatter: &httpFormatter,
+		},
+		debugHeaders: false,
 	}
 }
 
-func (h *HttpLog) Get(a map[string]any, status int) {
+func (h *HttpLog) WithHeaders() FancyHttpLog {
+	h.debugHeaders = true
+	return h
+}
+
+func (h *HttpLog) DebugHeaders() bool {
+	return h.debugHeaders
+}
+
+func (h *HttpLog) GetMethod(a map[string]any, status int) {
 	h.outputMap(getPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Delete(a map[string]any, status int) {
+func (h *HttpLog) DeleteMethod(a map[string]any, status int) {
 	h.outputMap(deletePrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Connect(a map[string]any, status int) {
+func (h *HttpLog) ConnectMethod(a map[string]any, status int) {
 	h.outputMap(connectPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Head(a map[string]any, status int) {
+func (h *HttpLog) HeadMethod(a map[string]any, status int) {
 	h.outputMap(headPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Options(a map[string]any, status int) {
+func (h *HttpLog) OptionsMethod(a map[string]any, status int) {
 	h.outputMap(optionsPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Post(a map[string]any, status int) {
+func (h *HttpLog) PostMethod(a map[string]any, status int) {
 	h.outputMap(postPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Put(a map[string]any, status int) {
+func (h *HttpLog) PutMethod(a map[string]any, status int) {
 	h.outputMap(putPrefix, a, false, getStatusColor(status))
 }
 
-func (h *HttpLog) Trace(a map[string]any, status int) {
+func (h *HttpLog) TraceMethod(a map[string]any, status int) {
 	h.outputMap(tracePrefix, a, false, getStatusColor(status))
 }
 
 func getStatusColor(status int) *Color {
-	if 100 <= status && status >= 199 {
+	if 100 >= status && status <= 199 {
 		return &ColorCyan
-	} else if 200 <= status && status >= 299 {
+	} else if 200 >= status && status <= 299 {
 		return &ColorGreen
-	} else if 300 <= status && status >= 399 {
+	} else if 300 >= status && status <= 399 {
 		return &ColorOrange
-	} else if 400 <= status && status >= 499 {
+	} else if 400 >= status && status <= 499 {
 		return &ColorRed
-	} else if 500 <= status && status >= 599 {
+	} else if 500 >= status && status <= 599 {
 		return &ColorFatalRed
 	}
 	return nil
