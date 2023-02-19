@@ -212,15 +212,15 @@ func (h *HttpLog) TraceMethod(a map[string]any, status int) {
 }
 
 func getStatusColor(status int) *Color {
-	if 100 >= status && status <= 199 {
+	if 100 <= status && status <= 199 {
 		return &ColorCyan
-	} else if 200 >= status && status <= 299 {
+	} else if 200 <= status && status <= 299 {
 		return &ColorGreen
-	} else if 300 >= status && status <= 399 {
+	} else if 300 <= status && status <= 399 {
 		return &ColorOrange
-	} else if 400 >= status && status <= 499 {
+	} else if 400 <= status && status <= 499 {
 		return &ColorRed
-	} else if 500 >= status && status <= 599 {
+	} else if 500 <= status && status <= 599 {
 		return &ColorFatalRed
 	}
 	return nil
