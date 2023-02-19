@@ -21,7 +21,7 @@ type FancyLogger interface {
 	IsQuiet() bool
 
 	output(prefix Prefix, data string, isErr bool, prefixColorOverride *Color)
-	outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color)
+	outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color, mapKeyColorOverride *map[string]Color)
 }
 
 type StandardLog interface {

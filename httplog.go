@@ -2,6 +2,8 @@ package fancylog
 
 import (
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/exp/maps"
+	"sync"
 )
 
 type FancyHttpLog interface {
@@ -26,86 +28,66 @@ type Methods interface {
 type HttpLog struct {
 	FancyLogger
 	debugHeaders bool
+	once         *sync.Once
+}
+
+var httplogInit = &sync.Once{}
+
+func httplogInitalizer() {
+	maps.Copy(Prefixes, HttpPrefixes)
+	scanPrefixes()
 }
 
 var httpFormatter string = "{%s}"
 
-var (
-	getText = &PrefixText{
-		value:    "GET",
-		tailSize: 0,
-	}
-	deleteText = &PrefixText{
-		value:    "DELETE",
-		tailSize: 0,
-	}
-	connectText = &PrefixText{
-		value:    "CONNECT",
-		tailSize: 0,
-	}
-	headText = &PrefixText{
-		value:    "HEAD",
-		tailSize: 0,
-	}
-	optionsText = &PrefixText{
-		value:    "OPTIONS",
-		tailSize: 0,
-	}
-	postText = &PrefixText{
-		value:    "POST",
-		tailSize: 0,
-	}
-	putText = &PrefixText{
-		value:    "PUT",
-		tailSize: 0,
-	}
-	traceText = &PrefixText{
-		value:    "TRACE",
-		tailSize: 0,
-	}
-
-	getPrefix = Prefix{
-		Text:  getText,
-		Color: ColorCyan,
-	}
-
-	deletePrefix = Prefix{
-		Text:  deleteText,
-		Color: nil,
-	}
-
-	connectPrefix = Prefix{
-		Text:  connectText,
-		Color: nil,
-	}
-
-	headPrefix = Prefix{
-		Text:  headText,
-		Color: nil,
-	}
-
-	optionsPrefix = Prefix{
-		Text:  optionsText,
-		Color: nil,
-	}
-
-	postPrefix = Prefix{
-		Text:  postText,
-		Color: nil,
-	}
-
-	putPrefix = Prefix{
-		Text:  putText,
-		Color: nil,
-	}
-
-	tracePrefix = Prefix{
-		Text:  traceText,
-		Color: nil,
-	}
+const (
+	GetLevel     Level = "GET"
+	DeleteLevel  Level = "DELETE"
+	ConnectLevel Level = "CONNECT"
+	HeadLevel    Level = "HEAD"
+	OptionsLevel Level = "OPTIONS"
+	PostLevel    Level = "POST"
+	PutLevel     Level = "PUT"
+	TraceLevel   Level = "TRACE"
 )
 
+var HttpPrefixes = map[Level]Prefix{
+	GetLevel: {
+		Text:  GetLevel,
+		Color: ColorCyan,
+	},
+	DeleteLevel: {
+		Text:  DeleteLevel,
+		Color: ColorCyan,
+	},
+	ConnectLevel: {
+		Text:  ConnectLevel,
+		Color: ColorCyan,
+	},
+	HeadLevel: {
+		Text:  HeadLevel,
+		Color: ColorCyan,
+	},
+	OptionsLevel: {
+		Text:  OptionsLevel,
+		Color: ColorCyan,
+	},
+	PostLevel: {
+		Text:  PostLevel,
+		Color: ColorCyan,
+	},
+	PutLevel: {
+		Text:  PutLevel,
+		Color: ColorCyan,
+	},
+	TraceLevel: {
+		Text:  TraceLevel,
+		Color: ColorCyan,
+	},
+}
+
 func NewHttpLogger(out FdWriter) FancyHttpLog {
+	httplogInit.Do(httplogInitalizer)
 	return &HttpLog{
 		FancyLogger: &Logger{
 			color:         terminal.IsTerminal(int(out.Fd())),
@@ -120,6 +102,7 @@ func NewHttpLogger(out FdWriter) FancyHttpLog {
 }
 
 func NewHttpLoggerWithError(out FdWriter, err FdWriter) FancyHttpLog {
+	httplogInit.Do(httplogInitalizer)
 	return &HttpLog{
 		FancyLogger: &Logger{
 			color:     terminal.IsTerminal(int(out.Fd())),
@@ -134,6 +117,7 @@ func NewHttpLoggerWithError(out FdWriter, err FdWriter) FancyHttpLog {
 	}
 }
 func NewHttpLoggerWithName(name string, out FdWriter) FancyHttpLog {
+	httplogInit.Do(httplogInitalizer)
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
@@ -153,6 +137,7 @@ func NewHttpLoggerWithName(name string, out FdWriter) FancyHttpLog {
 }
 
 func NewHttpLoggerWithNameAndError(name string, out FdWriter, err FdWriter) FancyHttpLog {
+	httplogInit.Do(httplogInitalizer)
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
@@ -179,36 +164,43 @@ func (h *HttpLog) DebugHeaders() bool {
 	return h.debugHeaders
 }
 
+func (h *HttpLog) ensureStatusKey(a map[string]any, status int, prefix Prefix) {
+	a["status"] = status
+	h.outputMap(prefix, a, false, getStatusColor(status), &map[string]Color{
+		"status": ColorOrange,
+	})
+}
+
 func (h *HttpLog) GetMethod(a map[string]any, status int) {
-	h.outputMap(getPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[GetLevel])
 }
 
 func (h *HttpLog) DeleteMethod(a map[string]any, status int) {
-	h.outputMap(deletePrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[DeleteLevel])
 }
 
 func (h *HttpLog) ConnectMethod(a map[string]any, status int) {
-	h.outputMap(connectPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[ConnectLevel])
 }
 
 func (h *HttpLog) HeadMethod(a map[string]any, status int) {
-	h.outputMap(headPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[HeadLevel])
 }
 
 func (h *HttpLog) OptionsMethod(a map[string]any, status int) {
-	h.outputMap(optionsPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[OptionsLevel])
 }
 
 func (h *HttpLog) PostMethod(a map[string]any, status int) {
-	h.outputMap(postPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[PostLevel])
 }
 
 func (h *HttpLog) PutMethod(a map[string]any, status int) {
-	h.outputMap(putPrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[PutLevel])
 }
 
 func (h *HttpLog) TraceMethod(a map[string]any, status int) {
-	h.outputMap(tracePrefix, a, false, getStatusColor(status))
+	h.ensureStatusKey(a, status, HttpPrefixes[TraceLevel])
 }
 
 func getStatusColor(status int) *Color {

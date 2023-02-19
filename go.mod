@@ -7,6 +7,7 @@ require (
 	github.com/jackc/pgx/v4 v4.17.2
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.5.0
+	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 	google.golang.org/grpc v1.52.0
 )
 

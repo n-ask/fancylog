@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +58,7 @@ const (
 // Color will be the color applied to the log
 // File flag set to true will display code trace
 type Prefix struct {
-	Text  *PrefixText
+	Text  Level
 	Color Color
 	File  bool
 }
@@ -69,73 +70,48 @@ type PrefixText struct {
 	tailSize int
 }
 
-// TODO make this a map and get rid of tailSize
-var (
-	plainFatal = &PrefixText{
-		value:    Fatal,
-		tailSize: 0,
-	}
-	plainError = &PrefixText{
-		value:    Error,
-		tailSize: 0,
-	}
-	plainWarn = &PrefixText{
-		value:    Warn,
-		tailSize: 1,
-	}
-	plainInfo = &PrefixText{
-		value:    Info,
-		tailSize: 1,
-	}
-	plainDebug = &PrefixText{
-		value:    Debug,
-		tailSize: 0,
-	}
-	plainTrace = &PrefixText{
-		value:    Trace,
-		tailSize: 0,
-	}
-
-	// FatalPrefix show fatal prefix
-	FatalPrefix = Prefix{
-		Text:  plainFatal,
+var Prefixes = map[Level]Prefix{
+	Fatal: {
+		Text:  Fatal,
 		Color: ColorFatalRed,
 		File:  true,
-	}
-
-	// ErrorPrefix show error prefix
-	ErrorPrefix = Prefix{
-		Text:  plainError,
+	},
+	Error: {
+		Text:  Error,
 		Color: ColorRed,
-	}
-
-	// WarnPrefix show warn prefix
-	WarnPrefix = Prefix{
-		Text:  plainWarn,
+	},
+	Warn: {
+		Text:  Warn,
 		Color: ColorOrange,
-	}
-
-	// InfoPrefix show info prefix
-	InfoPrefix = Prefix{
-		Text:  plainInfo,
+	},
+	Info: {
+		Text:  Info,
 		Color: ColorGreen,
-	}
-
-	// TracePrefix show info prefix
-	TracePrefix = Prefix{
-		Text:  plainTrace,
+	},
+	Trace: {
+		Text:  Trace,
 		Color: ColorCyan,
 		File:  true,
-	}
-
-	// DebugPrefix show info prefix
-	DebugPrefix = Prefix{
-		Text:  plainDebug,
+	},
+	Debug: {
+		Text:  Debug,
 		Color: ColorPurple,
-	}
+	},
+}
 
-	maxNameSize int = 0
+// TODO make this a map and get rid of tailSize
+var (
+	maxNameSize   int = 0
+	maxPrefixSize int = 0
 )
+
+func scanPrefixes() {
+	for level, _ := range Prefixes {
+		if l := len(level); l > maxPrefixSize {
+			maxPrefixSize = l
+		}
+	}
+}
 
 func defaultTimeFn() (time.Time, string) {
 	return time.Now(), time.RFC3339
@@ -144,6 +120,7 @@ func defaultTimeFn() (time.Time, string) {
 // New returns new Logger instance with predefined writer output and
 // automatically detect terminal coloring support
 func New(out FdWriter) *Logger {
+	scanPrefixes()
 	return &Logger{
 		color:     terminal.IsTerminal(int(out.Fd())),
 		out:       out,
@@ -157,6 +134,7 @@ func New(out FdWriter) *Logger {
 // automatically detect terminal coloring support. out would be something like os.Stdout
 // and err would be something like os.Stderr
 func NewWithError(out FdWriter, err FdWriter) *Logger {
+	scanPrefixes()
 	return &Logger{
 		color:     terminal.IsTerminal(int(out.Fd())),
 		out:       out,
@@ -169,6 +147,7 @@ func NewWithError(out FdWriter, err FdWriter) *Logger {
 // NewWithName {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
 // automatically detect terminal coloring support
 func NewWithName(name string, out FdWriter) *Logger {
+	scanPrefixes()
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
@@ -185,6 +164,7 @@ func NewWithName(name string, out FdWriter) *Logger {
 // NewWithNameAndError {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
 // automatically detect terminal coloring support
 func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
+	scanPrefixes()
 	if maxNameSize < len(name) {
 		maxNameSize = len(name)
 	}
@@ -311,21 +291,19 @@ func (l *Logger) getTimeFunc() TimestampFunc {
 }
 
 func (l *Logger) writePrefix(p Prefix, b ColorLogger, colorOverride *Color) {
-	if p.Text != nil {
-		if l.color {
-			if colorOverride != nil {
-				b.AppendWithColor(p.Text.value.toPrefix(), *colorOverride)
-			} else {
-				b.AppendWithColor(p.Text.value.toPrefix(), p.Color)
-			}
+	if l.color {
+		if colorOverride != nil {
+			b.AppendWithColor(p.Text.toPrefix(), *colorOverride)
 		} else {
-			b.Append(p.Text.value.toPrefix())
+			b.AppendWithColor(p.Text.toPrefix(), p.Color)
 		}
-		for i := 0; i < p.Text.tailSize; i++ {
-			b.AppendSpace()
-		}
+	} else {
+		b.Append(p.Text.toPrefix())
+	}
+	for i := 0; i < maxPrefixSize-len(p.Text); i++ {
 		b.AppendSpace()
 	}
+	b.AppendSpace()
 }
 
 func (l *Logger) writeTime(b ColorLogger) {
@@ -351,6 +329,7 @@ func (l *Logger) writeName(b ColorLogger) {
 	}
 	if l.nameFormatter != nil {
 		b.AppendString(fmt.Sprintf(*l.nameFormatter, l.name))
+		b.AppendSpace()
 	} else {
 		b.Append([]byte("<"))
 		b.Append([]byte(l.name))
@@ -455,7 +434,12 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool, prefixColorOverr
 	return
 }
 
-func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color) {
+func (l *Logger) outputMap(prefix Prefix,
+	data map[string]interface{},
+	isErr bool,
+	prefixColorOverride *Color,
+	mapKeyColorOverride *map[string]Color,
+) {
 	// Check if quiet is requested, and try to return no error and be quiet
 	if l.IsQuiet() {
 		return
@@ -495,20 +479,35 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 		l.writeTime(b)
 	}
 
-	for key, val := range data {
-		switch t := val.(type) {
-		case map[string]any:
-			if l.color {
-				b.Purple()
+	sortedKeys := make([]string, 0, len(data))
+	for key := range data {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Strings(sortedKeys)
+	for _, key := range sortedKeys {
+		if l.color {
+			b.Purple()
+		}
+		if mapKeyColorOverride != nil {
+			if c, ok := (*mapKeyColorOverride)[key]; ok {
+				b.WriteColor(c)
 			}
-			b.Append([]byte(key))
+		}
+		b.Append([]byte(key))
+		switch t := data[key].(type) {
+		case map[string]any:
 			b.Append([]byte("["))
-			for k, v := range t {
+			innerSortedKeys := make([]string, 0, len(t))
+			for innerKey := range t {
+				innerSortedKeys = append(innerSortedKeys, innerKey)
+			}
+			sort.Strings(innerSortedKeys)
+			for _, sortedKey := range innerSortedKeys {
 				b.AppendSpace()
 				if l.color {
 					b.Orange()
 				}
-				b.Append([]byte(k))
+				b.Append([]byte(sortedKey))
 				if l.color {
 					b.White()
 				}
@@ -516,7 +515,7 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 				if l.color {
 					b.Cyan()
 				}
-				b.Append([]byte(fmt.Sprintf("%+v", v)))
+				b.Append([]byte(fmt.Sprintf("%+v", t[sortedKey])))
 				b.AppendSpace()
 			}
 			if l.color {
@@ -525,18 +524,18 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 			b.Append([]byte("]"))
 			b.AppendSpace()
 		case map[string][]string:
-			if l.color {
-				b.Purple()
-			}
-			b.Append([]byte(key))
 			b.Append([]byte("["))
-
-			for k, v := range t {
+			innerSortedKeys := make([]string, 0, len(t))
+			for innerKey := range t {
+				innerSortedKeys = append(innerSortedKeys, innerKey)
+			}
+			sort.Strings(innerSortedKeys)
+			for _, sortedKey := range innerSortedKeys {
 				b.AppendSpace()
 				if l.color {
 					b.Orange()
 				}
-				b.Append([]byte(k))
+				b.Append([]byte(sortedKey))
 				if l.color {
 					b.White()
 				}
@@ -544,7 +543,7 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 				if l.color {
 					b.Cyan()
 				}
-				b.Append([]byte(fmt.Sprintf("%+v", v)))
+				b.Append([]byte(fmt.Sprintf("%+v", t[sortedKey])))
 				b.AppendSpace()
 			}
 			if l.color {
@@ -554,17 +553,13 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 			b.AppendSpace()
 		default:
 			if l.color {
-				b.Purple()
-			}
-			b.Append([]byte(key))
-			if l.color {
 				b.Orange()
 			}
 			b.Append([]byte("="))
 			if l.color {
 				b.Cyan()
 			}
-			b.Append([]byte(fmt.Sprintf("%+v", val)))
+			b.Append([]byte(fmt.Sprintf("%+v", data[key])))
 			b.AppendSpace()
 		}
 	}
@@ -590,121 +585,121 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 
 // Fatal print fatal message to output and quit the application with status 1
 func (l *Logger) Fatal(v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintln(v...), true, nil)
+	l.output(Prefixes[Fatal], fmt.Sprintln(v...), true, nil)
 	os.Exit(1)
 }
 
 // FatalWithCode print formatted fatal message to output and quit the application
 // with status code provider
 func (l *Logger) FatalWithCode(exit int, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintln(v...), true, nil)
+	l.output(Prefixes[Fatal], fmt.Sprintln(v...), true, nil)
 	os.Exit(exit)
 }
 
 // Fatalf print formatted fatal message to output and quit the application
 // with status 1
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintf(format, v...), true, nil)
+	l.output(Prefixes[Fatal], fmt.Sprintf(format, v...), true, nil)
 	os.Exit(1)
 }
 
 // FatalWithCodef print formatted fatal message to output and quit the application
 // with status code provider
 func (l *Logger) FatalWithCodef(format string, exit int, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintf(format, v...), true, nil)
+	l.output(Prefixes[Fatal], fmt.Sprintf(format, v...), true, nil)
 	os.Exit(exit)
 }
 
 func (l *Logger) FatalMap(v map[string]interface{}) {
-	l.outputMap(FatalPrefix, v, true, nil)
+	l.outputMap(Prefixes[Fatal], v, true, nil, nil)
 	os.Exit(1)
 }
 
 func (l *Logger) FatalMapWithCode(exit int, v map[string]interface{}) {
-	l.outputMap(FatalPrefix, v, true, nil)
+	l.outputMap(Prefixes[Fatal], v, true, nil, nil)
 	os.Exit(exit)
 }
 
 // Error print error message to output
 func (l *Logger) Error(v ...interface{}) {
-	l.output(ErrorPrefix, fmt.Sprintln(v...), true, nil)
+	l.output(Prefixes[Error], fmt.Sprintln(v...), true, nil)
 }
 
 // Errorf print formatted error message to output
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	l.output(ErrorPrefix, fmt.Sprintf(format, v...), true, nil)
+	l.output(Prefixes[Error], fmt.Sprintf(format, v...), true, nil)
 }
 
 func (l *Logger) ErrorMap(v map[string]interface{}) {
-	l.outputMap(ErrorPrefix, v, true, nil)
+	l.outputMap(Prefixes[Error], v, true, nil, nil)
 }
 
 // Warn print warning message to output
 func (l *Logger) Warn(v ...interface{}) {
-	l.output(WarnPrefix, fmt.Sprintln(v...), false, nil)
+	l.output(Prefixes[Warn], fmt.Sprintln(v...), false, nil)
 }
 
 // Warnf print formatted warning message to output
 func (l *Logger) Warnf(format string, v ...any) {
-	l.output(WarnPrefix, fmt.Sprintf(format, v...), false, nil)
+	l.output(Prefixes[Warn], fmt.Sprintf(format, v...), false, nil)
 }
 
 func (l *Logger) WarnMap(v map[string]interface{}) {
-	l.outputMap(WarnPrefix, v, false, nil)
+	l.outputMap(Prefixes[Warn], v, false, nil, nil)
 }
 
 // Info print informational message to output
 func (l *Logger) Info(v ...interface{}) {
-	l.output(InfoPrefix, fmt.Sprintln(v...), false, nil)
+	l.output(Prefixes[Info], fmt.Sprintln(v...), false, nil)
 }
 
 // Infof print formatted informational message to output
 func (l *Logger) Infof(format string, v ...interface{}) {
-	l.output(InfoPrefix, fmt.Sprintf(format, v...), false, nil)
+	l.output(Prefixes[Info], fmt.Sprintf(format, v...), false, nil)
 }
 
 func (l *Logger) InfoMap(v map[string]interface{}) {
-	l.outputMap(InfoPrefix, v, false, nil)
+	l.outputMap(Prefixes[Info], v, false, nil, nil)
 }
 
 // Debug print debug message to output if debug output enabled
 func (l *Logger) Debug(v ...interface{}) {
 	if l.IsDebug() {
-		l.output(DebugPrefix, fmt.Sprintln(v...), false, nil)
+		l.output(Prefixes[Debug], fmt.Sprintln(v...), false, nil)
 	}
 }
 
 // Debugf print formatted debug message to output if debug output enabled
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.IsDebug() {
-		l.output(DebugPrefix, fmt.Sprintf(format, v...), false, nil)
+		l.output(Prefixes[Debug], fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
 func (l *Logger) DebugMap(v map[string]interface{}) {
 	if l.IsDebug() {
-		l.outputMap(DebugPrefix, v, false, nil)
+		l.outputMap(Prefixes[Debug], v, false, nil, nil)
 	}
 }
 
 // Trace print trace message to output if debug output enabled
 func (l *Logger) Trace(v ...interface{}) {
 	if l.IsTrace() {
-		l.output(TracePrefix, fmt.Sprintln(v...), false, nil)
+		l.output(Prefixes[Trace], fmt.Sprintln(v...), false, nil)
 	}
 }
 
 // Tracef print formatted trace message to output if debug output enabled
 func (l *Logger) Tracef(format string, v ...interface{}) {
 	if l.IsTrace() {
-		l.output(TracePrefix, fmt.Sprintf(format, v...), false, nil)
+		l.output(Prefixes[Trace], fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
 // TraceMap print formatted trace message to output if debug output enabled
 func (l *Logger) TraceMap(v map[string]interface{}) {
 	if l.IsTrace() {
-		l.outputMap(TracePrefix, v, false, nil)
+		l.outputMap(Prefixes[Trace], v, false, nil, nil)
 	}
 }
 
@@ -717,5 +712,5 @@ func (l *Logger) Logf(prefix Prefix, format string, a ...any) {
 }
 
 func (l *Logger) LogMap(prefix Prefix, a map[string]any) {
-	l.outputMap(prefix, a, false, nil)
+	l.outputMap(prefix, a, false, nil, nil)
 }
