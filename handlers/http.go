@@ -12,7 +12,7 @@ import (
 type loggingHandler struct {
 	writer  io.Writer
 	handler http.Handler
-	log     *fancylog.Logger
+	log     *fancylog.HttpLog
 }
 
 // responseLogger is wrapper of http.ResponseWriter that keeps track of its HTTP
@@ -81,12 +81,33 @@ func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if msg["uri"] == "" {
 		msg["uri"] = url.RequestURI()
 	}
-	msg["method"] = r.Method
+	//msg["method"] = r.Method
 	msg["proto"] = r.Proto
 	msg["status"] = logger.Status()
 	msg["size"] = logger.Size()
 
-	h.log.InfoMap(msg)
+	switch r.Method {
+	case http.MethodGet:
+		h.log.Get(msg, logger.status)
+	case http.MethodConnect:
+		h.log.Connect(msg, logger.status)
+	case http.MethodDelete:
+		h.log.Delete(msg, logger.status)
+	case http.MethodHead:
+		h.log.Head(msg, logger.status)
+	case http.MethodOptions:
+		h.log.Options(msg, logger.status)
+	case http.MethodPost:
+		h.log.Post(msg, logger.status)
+	case http.MethodPut:
+		h.log.Put(msg, logger.status)
+	case http.MethodTrace:
+		h.log.Trace(msg, logger.status)
+	default:
+		msg["method"] = r.Method
+		h.log.InfoMap(msg)
+	}
+
 }
 
 func makeLogger(w http.ResponseWriter) (*responseLogger, http.ResponseWriter) {
@@ -101,7 +122,7 @@ func makeLogger(w http.ResponseWriter) (*responseLogger, http.ResponseWriter) {
 	})
 }
 
-func LoggingHandler(log *fancylog.Logger, out io.Writer, h http.Handler) http.Handler {
+func LoggingHandler(log *fancylog.HttpLog, out io.Writer, h http.Handler) http.Handler {
 	return loggingHandler{
 		writer:  out,
 		handler: h,

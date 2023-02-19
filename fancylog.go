@@ -33,6 +33,8 @@ type Logger struct {
 	timestampFn    *TimestampFunc
 	quiet          bool
 	mu             sync.Mutex
+
+	nameFormatter *string
 }
 
 type Level string
@@ -55,41 +57,41 @@ const (
 // Color will be the color applied to the log
 // File flag set to true will display code trace
 type Prefix struct {
-	Text  *prefixText
+	Text  *PrefixText
 	Color Color
 	File  bool
 }
 
-// prefixText struct to hold the values of the prefixes to be used, and the tail size to add spaces to the end
+// PrefixText struct to hold the values of the prefixes to be used, and the tail size to add spaces to the end
 // of the prefix
-type prefixText struct {
+type PrefixText struct {
 	value    Level
 	tailSize int
 }
 
 // TODO make this a map and get rid of tailSize
 var (
-	plainFatal = &prefixText{
+	plainFatal = &PrefixText{
 		value:    Fatal,
 		tailSize: 0,
 	}
-	plainError = &prefixText{
+	plainError = &PrefixText{
 		value:    Error,
 		tailSize: 0,
 	}
-	plainWarn = &prefixText{
+	plainWarn = &PrefixText{
 		value:    Warn,
 		tailSize: 1,
 	}
-	plainInfo = &prefixText{
+	plainInfo = &PrefixText{
 		value:    Info,
 		tailSize: 1,
 	}
-	plainDebug = &prefixText{
+	plainDebug = &PrefixText{
 		value:    Debug,
 		tailSize: 0,
 	}
-	plainTrace = &prefixText{
+	plainTrace = &PrefixText{
 		value:    Trace,
 		tailSize: 0,
 	}
@@ -308,10 +310,14 @@ func (l *Logger) getTimeFunc() TimestampFunc {
 	return *l.timestampFn
 }
 
-func (l *Logger) writePrefix(p Prefix, b ColorLogger) {
+func (l *Logger) writePrefix(p Prefix, b ColorLogger, colorOverride *Color) {
 	if p.Text != nil {
 		if l.color {
-			b.AppendWithColor(p.Text.value.toPrefix(), p.Color)
+			if colorOverride != nil {
+				b.AppendWithColor(p.Text.value.toPrefix(), *colorOverride)
+			} else {
+				b.AppendWithColor(p.Text.value.toPrefix(), p.Color)
+			}
 		} else {
 			b.Append(p.Text.value.toPrefix())
 		}
@@ -343,9 +349,14 @@ func (l *Logger) writeName(b ColorLogger) {
 	if l.color {
 		b.NicePurple()
 	}
-	b.Append([]byte("<"))
-	b.Append([]byte(l.name))
-	b.Append([]byte("> "))
+	if l.nameFormatter != nil {
+		b.AppendString(fmt.Sprintf(*l.nameFormatter, l.name))
+	} else {
+		b.Append([]byte("<"))
+		b.Append([]byte(l.name))
+		b.Append([]byte("> "))
+	}
+
 	if l.color {
 		b.Off()
 	}
@@ -385,7 +396,8 @@ func (l *Logger) writeStack(stack string, b ColorLogger) {
 }
 
 // output print the actual value
-func (l *Logger) output(prefix Prefix, data string, isErr bool) {
+func (l *Logger) output(prefix Prefix, data string, isErr bool, prefixColorOverride *Color) {
+
 	// Check if quiet is requested, and try to return no error and be quiet
 	if l.IsQuiet() {
 		return
@@ -416,7 +428,7 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 		}
 	}
 
-	l.writePrefix(prefix, b)
+	l.writePrefix(prefix, b, prefixColorOverride)
 
 	// Check if the log require timestamping
 	if l.timestamp {
@@ -443,7 +455,7 @@ func (l *Logger) output(prefix Prefix, data string, isErr bool) {
 	return
 }
 
-func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr bool) {
+func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color) {
 	// Check if quiet is requested, and try to return no error and be quiet
 	if l.IsQuiet() {
 		return
@@ -475,7 +487,7 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 		}
 	}
 
-	l.writePrefix(prefix, b)
+	l.writePrefix(prefix, b, prefixColorOverride)
 
 	// Check if the log require timestamping
 	// Check if the log require timestamping
@@ -520,120 +532,132 @@ func (l *Logger) outputMap(prefix Prefix, data map[string]interface{}, isErr boo
 
 // Fatal print fatal message to output and quit the application with status 1
 func (l *Logger) Fatal(v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintln(v...), true)
+	l.output(FatalPrefix, fmt.Sprintln(v...), true, nil)
 	os.Exit(1)
 }
 
 // FatalWithCode print formatted fatal message to output and quit the application
 // with status code provider
 func (l *Logger) FatalWithCode(exit int, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintln(v...), true)
+	l.output(FatalPrefix, fmt.Sprintln(v...), true, nil)
 	os.Exit(exit)
 }
 
 // Fatalf print formatted fatal message to output and quit the application
 // with status 1
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintf(format, v...), true)
+	l.output(FatalPrefix, fmt.Sprintf(format, v...), true, nil)
 	os.Exit(1)
 }
 
 // FatalWithCodef print formatted fatal message to output and quit the application
 // with status code provider
 func (l *Logger) FatalWithCodef(format string, exit int, v ...interface{}) {
-	l.output(FatalPrefix, fmt.Sprintf(format, v...), true)
+	l.output(FatalPrefix, fmt.Sprintf(format, v...), true, nil)
 	os.Exit(exit)
 }
 
 func (l *Logger) FatalMap(v map[string]interface{}) {
-	l.outputMap(FatalPrefix, v, true)
+	l.outputMap(FatalPrefix, v, true, nil)
 	os.Exit(1)
 }
 
 func (l *Logger) FatalMapWithCode(exit int, v map[string]interface{}) {
-	l.outputMap(FatalPrefix, v, true)
+	l.outputMap(FatalPrefix, v, true, nil)
 	os.Exit(exit)
 }
 
 // Error print error message to output
 func (l *Logger) Error(v ...interface{}) {
-	l.output(ErrorPrefix, fmt.Sprintln(v...), true)
+	l.output(ErrorPrefix, fmt.Sprintln(v...), true, nil)
 }
 
 // Errorf print formatted error message to output
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	l.output(ErrorPrefix, fmt.Sprintf(format, v...), true)
+	l.output(ErrorPrefix, fmt.Sprintf(format, v...), true, nil)
 }
 
 func (l *Logger) ErrorMap(v map[string]interface{}) {
-	l.outputMap(ErrorPrefix, v, true)
+	l.outputMap(ErrorPrefix, v, true, nil)
 }
 
 // Warn print warning message to output
 func (l *Logger) Warn(v ...interface{}) {
-	l.output(WarnPrefix, fmt.Sprintln(v...), false)
+	l.output(WarnPrefix, fmt.Sprintln(v...), false, nil)
 }
 
 // Warnf print formatted warning message to output
-func (l *Logger) Warnf(format string, v ...interface{}) {
-	l.output(WarnPrefix, fmt.Sprintf(format, v...), false)
+func (l *Logger) Warnf(format string, v ...any) {
+	l.output(WarnPrefix, fmt.Sprintf(format, v...), false, nil)
 }
 
 func (l *Logger) WarnMap(v map[string]interface{}) {
-	l.outputMap(WarnPrefix, v, false)
+	l.outputMap(WarnPrefix, v, false, nil)
 }
 
 // Info print informational message to output
 func (l *Logger) Info(v ...interface{}) {
-	l.output(InfoPrefix, fmt.Sprintln(v...), false)
+	l.output(InfoPrefix, fmt.Sprintln(v...), false, nil)
 }
 
 // Infof print formatted informational message to output
 func (l *Logger) Infof(format string, v ...interface{}) {
-	l.output(InfoPrefix, fmt.Sprintf(format, v...), false)
+	l.output(InfoPrefix, fmt.Sprintf(format, v...), false, nil)
 }
 
 func (l *Logger) InfoMap(v map[string]interface{}) {
-	l.outputMap(InfoPrefix, v, false)
+	l.outputMap(InfoPrefix, v, false, nil)
 }
 
 // Debug print debug message to output if debug output enabled
 func (l *Logger) Debug(v ...interface{}) {
 	if l.IsDebug() {
-		l.output(DebugPrefix, fmt.Sprintln(v...), false)
+		l.output(DebugPrefix, fmt.Sprintln(v...), false, nil)
 	}
 }
 
 // Debugf print formatted debug message to output if debug output enabled
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.IsDebug() {
-		l.output(DebugPrefix, fmt.Sprintf(format, v...), false)
+		l.output(DebugPrefix, fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
 func (l *Logger) DebugMap(v map[string]interface{}) {
 	if l.IsDebug() {
-		l.outputMap(DebugPrefix, v, false)
+		l.outputMap(DebugPrefix, v, false, nil)
 	}
 }
 
 // Trace print trace message to output if debug output enabled
 func (l *Logger) Trace(v ...interface{}) {
 	if l.IsTrace() {
-		l.output(TracePrefix, fmt.Sprintln(v...), false)
+		l.output(TracePrefix, fmt.Sprintln(v...), false, nil)
 	}
 }
 
 // Tracef print formatted trace message to output if debug output enabled
 func (l *Logger) Tracef(format string, v ...interface{}) {
 	if l.IsTrace() {
-		l.output(TracePrefix, fmt.Sprintf(format, v...), false)
+		l.output(TracePrefix, fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
 // TraceMap print formatted trace message to output if debug output enabled
 func (l *Logger) TraceMap(v map[string]interface{}) {
 	if l.IsTrace() {
-		l.outputMap(TracePrefix, v, false)
+		l.outputMap(TracePrefix, v, false, nil)
 	}
+}
+
+func (l *Logger) Log(prefix Prefix, a ...any) {
+	l.output(prefix, fmt.Sprintln(a...), false, nil)
+}
+
+func (l *Logger) Logf(prefix Prefix, format string, a ...any) {
+	l.output(prefix, fmt.Sprintf(format, a...), false, nil)
+}
+
+func (l *Logger) LogMap(prefix Prefix, a map[string]any) {
+	l.outputMap(prefix, a, false, nil)
 }
