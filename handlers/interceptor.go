@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-func logLevelForMap(l *fancylog.Logger, level fancylog.Level, val map[string]any) {
+func logLevelForMap(l fancylog.FancyLogger, level fancylog.Level, val map[string]any) {
 	switch level {
 	case fancylog.Fatal:
 		l.FatalMap(val)
@@ -27,7 +27,7 @@ func logLevelForMap(l *fancylog.Logger, level fancylog.Level, val map[string]any
 	}
 }
 
-func UnaryServerInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]any, ignoreMethods []string) grpc.UnaryServerInterceptor {
+func UnaryServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]any, ignoreMethods []string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		resp, err := handler(ctx, req)
 		if ignored(info.FullMethod, ignoreMethods) {
@@ -45,7 +45,7 @@ func UnaryServerInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc
 	}
 }
 
-func StreamServerInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamServerInterceptor {
+func StreamServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, stream)
 		if ignored(info.FullMethod, ignoreMethods) {
@@ -63,7 +63,7 @@ func StreamServerInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFun
 	}
 }
 
-func UnaryClientInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.UnaryClientInterceptor {
+func UnaryClientInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		err := invoker(ctx, method, req, reply, cc, opts...)
 		v := logFunc(ctx)
@@ -81,7 +81,7 @@ func UnaryClientInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc
 	}
 }
 
-func StreamClientInterceptor(l *fancylog.Logger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamClientInterceptor {
+func StreamClientInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		s, err := streamer(ctx, desc, cc, method, opts...)
 		var clientStream *clientStream
