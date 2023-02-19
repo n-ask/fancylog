@@ -6,6 +6,20 @@ type FancyLogger interface {
 	MappedLog
 	PrefixLog
 
+	WithColor() FancyLogger
+	WithoutColor() FancyLogger
+	WithDebug() FancyLogger
+	WithoutDebug() FancyLogger
+	WithTrace() FancyLogger
+	WithoutTrace() FancyLogger
+	IsDebug() bool
+	IsTrace() bool
+	WithTimestamp() FancyLogger
+	WithoutTimestamp() FancyLogger
+	Quiet() FancyLogger
+	NoQuiet() FancyLogger
+	IsQuiet() bool
+
 	output(prefix Prefix, data string, isErr bool, prefixColorOverride *Color)
 	outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color)
 }

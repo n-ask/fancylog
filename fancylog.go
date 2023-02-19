@@ -199,7 +199,7 @@ func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
 }
 
 // WithColor explicitly turn on colorful features on the log
-func (l *Logger) WithColor() *Logger {
+func (l *Logger) WithColor() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.color = true
@@ -207,7 +207,7 @@ func (l *Logger) WithColor() *Logger {
 }
 
 // WithoutColor explicitly turn off colorful features on the log
-func (l *Logger) WithoutColor() *Logger {
+func (l *Logger) WithoutColor() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.color = false
@@ -215,7 +215,7 @@ func (l *Logger) WithoutColor() *Logger {
 }
 
 // WithDebug turn on debugging output on the log to reveal debug and trace level
-func (l *Logger) WithDebug() *Logger {
+func (l *Logger) WithDebug() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.debug = true
@@ -223,7 +223,7 @@ func (l *Logger) WithDebug() *Logger {
 }
 
 // WithoutDebug turn off debugging output on the log
-func (l *Logger) WithoutDebug() *Logger {
+func (l *Logger) WithoutDebug() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.debug = false
@@ -231,7 +231,7 @@ func (l *Logger) WithoutDebug() *Logger {
 }
 
 // WithTrace turn on trace output on the log to reveal debug and trace level
-func (l *Logger) WithTrace() *Logger {
+func (l *Logger) WithTrace() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.trace = true
@@ -239,7 +239,7 @@ func (l *Logger) WithTrace() *Logger {
 }
 
 // WithoutTrace turn off trace output on the log
-func (l *Logger) WithoutTrace() *Logger {
+func (l *Logger) WithoutTrace() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.trace = false
@@ -257,7 +257,7 @@ func (l *Logger) IsTrace() bool {
 }
 
 // WithTimestamp turn on timestamp output on the log
-func (l *Logger) WithTimestamp() *Logger {
+func (l *Logger) WithTimestamp() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.timestamp = true
@@ -265,7 +265,7 @@ func (l *Logger) WithTimestamp() *Logger {
 }
 
 // WithoutTimestamp turn off timestamp output on the log
-func (l *Logger) WithoutTimestamp() *Logger {
+func (l *Logger) WithoutTimestamp() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.timestamp = false
@@ -273,7 +273,7 @@ func (l *Logger) WithoutTimestamp() *Logger {
 }
 
 // Quiet turn off all log output
-func (l *Logger) Quiet() *Logger {
+func (l *Logger) Quiet() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quiet = true
@@ -281,7 +281,7 @@ func (l *Logger) Quiet() *Logger {
 }
 
 // NoQuiet turn on all log output
-func (l *Logger) NoQuiet() *Logger {
+func (l *Logger) NoQuiet() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quiet = false
