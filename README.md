@@ -11,3 +11,8 @@ fancylog provides stylized, non-blocking log output. It is used across many Gola
     <img alt="fancylog:example" src="./assets/fancylog.gif" width="700">
   </picture>
 </p>
+
+<h3>Getting Started</h3>
+<p>
+wip
+</p>
