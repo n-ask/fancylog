@@ -38,6 +38,10 @@ type Logger struct {
 	nameFormatter *string
 }
 
+func (l *Logger) HasColor() bool {
+	return l.color
+}
+
 type Level string
 
 func (l Level) toPrefix() []byte {
@@ -562,6 +566,7 @@ func (l *Logger) outputMap(prefix Prefix,
 			b.Append([]byte(fmt.Sprintf("%+v", data[key])))
 			b.AppendSpace()
 		}
+
 	}
 	if l.color {
 		b.Off()

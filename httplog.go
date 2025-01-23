@@ -144,7 +144,7 @@ func NewHttpLoggerWithNameAndError(name string, out FdWriter, err FdWriter) Fanc
 	return &HttpLog{
 		FancyLogger: &Logger{
 			name:          name,
-			color:         terminal.IsTerminal(int(out.Fd())),
+			color:         true,
 			out:           out,
 			err:           err,
 			timestamp:     true,
@@ -166,6 +166,7 @@ func (h *HttpLog) DebugHeaders() bool {
 
 func (h *HttpLog) ensureStatusKey(a map[string]any, status int, prefix Prefix) {
 	a["status"] = status
+
 	h.outputMap(prefix, a, false, getStatusColor(status), &map[string]Color{
 		"status": ColorOrange,
 	})

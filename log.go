@@ -19,6 +19,7 @@ type FancyLogger interface {
 	Quiet() FancyLogger
 	NoQuiet() FancyLogger
 	IsQuiet() bool
+	HasColor() bool
 
 	output(prefix Prefix, data string, isErr bool, prefixColorOverride *Color)
 	outputMap(prefix Prefix, data map[string]interface{}, isErr bool, prefixColorOverride *Color, mapKeyColorOverride *map[string]Color)
