@@ -42,6 +42,14 @@ func GinLogger(logger fancylog.FancyHttpLog) gin.HandlerFunc {
 		msg["status"] = c.Writer.Status()
 		msg["size"] = c.Writer.Size()
 
+		if logger.DebugHeaders() {
+			headers := map[string][]string{}
+			for header, v := range c.Request.Header {
+				headers[header] = v
+			}
+			msg["headers"] = headers
+		}
+
 		switch c.Request.Method {
 		case http.MethodGet:
 			logger.GetMethod(msg, c.Writer.Status())
