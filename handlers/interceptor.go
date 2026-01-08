@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"context"
+	"io"
+
 	"github.com/n-ask/fancylog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"io"
 )
 
 func logLevelForMap(l fancylog.FancyLogger, level fancylog.Level, val map[string]any) {
@@ -27,6 +28,9 @@ func logLevelForMap(l fancylog.FancyLogger, level fancylog.Level, val map[string
 	}
 }
 
+// UnaryServerInterceptor returns a gRPC unary server interceptor that logs each request
+// using the provided FancyLogger. It allows customizing the log level and provides
+// a hook for extracting additional log data from the context.
 func UnaryServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]any, ignoreMethods []string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		resp, err := handler(ctx, req)
@@ -45,6 +49,8 @@ func UnaryServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, log
 	}
 }
 
+// StreamServerInterceptor returns a gRPC stream server interceptor that logs the end
+// of each stream using the provided FancyLogger.
 func StreamServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, stream)
@@ -63,6 +69,8 @@ func StreamServerInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, lo
 	}
 }
 
+// UnaryClientInterceptor returns a gRPC unary client interceptor that logs each
+// outgoing request using the provided FancyLogger.
 func UnaryClientInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		err := invoker(ctx, method, req, reply, cc, opts...)
@@ -81,6 +89,8 @@ func UnaryClientInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, log
 	}
 }
 
+// StreamClientInterceptor returns a gRPC stream client interceptor that logs the end
+// of each outgoing stream using the provided FancyLogger.
 func StreamClientInterceptor(l fancylog.FancyLogger, logLevel fancylog.Level, logFunc func(ctx context.Context) map[string]interface{}, ignoreMethods ...string) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 		s, err := streamer(ctx, desc, cc, method, opts...)

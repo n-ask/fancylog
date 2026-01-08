@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"bufio"
-	"github.com/felixge/httpsnoop"
-	"github.com/n-ask/fancylog"
 	"io"
 	"net"
 	"net/http"
+
+	"github.com/felixge/httpsnoop"
+	"github.com/n-ask/fancylog"
 )
 
 type loggingHandler struct {
@@ -15,33 +16,38 @@ type loggingHandler struct {
 	log     fancylog.FancyHttpLog
 }
 
-// responseLogger is wrapper of http.ResponseWriter that keeps track of its HTTP
-// status code and body size
+// responseLogger is a wrapper for http.ResponseWriter that keeps track of the
+// HTTP status code and body size.
 type responseLogger struct {
 	w      http.ResponseWriter
 	status int
 	size   int
 }
 
+// Write writes the data to the connection as part of an HTTP reply.
 func (l *responseLogger) Write(b []byte) (int, error) {
 	size, err := l.w.Write(b)
 	l.size += size
 	return size, err
 }
 
+// WriteHeader sends an HTTP response header with the provided status code.
 func (l *responseLogger) WriteHeader(s int) {
 	l.w.WriteHeader(s)
 	l.status = s
 }
 
+// Status returns the HTTP status code.
 func (l *responseLogger) Status() int {
 	return l.status
 }
 
+// Size returns the size of the response body.
 func (l *responseLogger) Size() int {
 	return l.size
 }
 
+// Hijack implements the http.Hijacker interface.
 func (l *responseLogger) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	conn, rw, err := l.w.(http.Hijacker).Hijack()
 	if err == nil && l.status == 0 {
@@ -52,6 +58,7 @@ func (l *responseLogger) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return conn, rw, err
 }
 
+// ServeHTTP implements the http.Handler interface.
 func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger, w := makeLogger(w)
 	url := *r.URL
@@ -118,6 +125,7 @@ func (h loggingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// makeLogger creates a responseLogger and wraps it with httpsnoop.
 func makeLogger(w http.ResponseWriter) (*responseLogger, http.ResponseWriter) {
 	logger := &responseLogger{w: w, status: http.StatusOK}
 	return logger, httpsnoop.Wrap(w, httpsnoop.Hooks{
@@ -130,6 +138,7 @@ func makeLogger(w http.ResponseWriter) (*responseLogger, http.ResponseWriter) {
 	})
 }
 
+// LoggingHandler wraps an http.Handler to log each request using FancyHttpLog.
 func LoggingHandler(log fancylog.FancyHttpLog, out io.Writer, h http.Handler) http.Handler {
 	return loggingHandler{
 		writer:  out,

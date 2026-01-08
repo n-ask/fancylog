@@ -2,7 +2,6 @@ package fancylog
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"os"
 	"runtime"
@@ -10,18 +9,21 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // FdWriter interface extends existing io.Writer with file descriptor function
-// support
+// support. This is typically implemented by os.File (like os.Stdout and os.Stderr).
 type FdWriter interface {
 	io.Writer
 	Fd() uintptr
 }
 
+// TimestampFunc is a function type used to generate timestamps for log entries.
 type TimestampFunc func() (time time.Time, layout string)
 
-// Logger struct define the underlying storage for single logger
+// Logger struct defines the underlying storage for a single logger instance.
 type Logger struct {
 	name           string
 	color          bool
@@ -38,10 +40,12 @@ type Logger struct {
 	nameFormatter *string
 }
 
+// HasColor returns true if color output is enabled for this logger.
 func (l *Logger) HasColor() bool {
 	return l.color
 }
 
+// Level represents the severity level of a log message.
 type Level string
 
 func (l Level) toPrefix() []byte {
@@ -49,31 +53,38 @@ func (l Level) toPrefix() []byte {
 }
 
 const (
+	// Fatal level indicates a critical error that will cause the application to exit.
 	Fatal Level = "FATAL"
+	// Error level indicates a significant problem that needs attention.
 	Error Level = "ERROR"
-	Warn  Level = "WARN"
-	Info  Level = "INFO"
+	// Warn level indicates a potential issue or important situation.
+	Warn Level = "WARN"
+	// Info level indicates general informational messages.
+	Info Level = "INFO"
+	// Debug level indicates detailed information for troubleshooting.
 	Debug Level = "DEBUG"
+	// Trace level indicates even more granular information than Debug, often including stack traces.
 	Trace Level = "TRACE"
 )
 
-// Prefix struct define plain and color byte
-// Text will prefix text to include in the log
-// Color will be the color applied to the log
-// File flag set to true will display code trace
+// Prefix struct defines the visual representation of a log level.
+// Text will be the prefix text included in the log.
+// Color will be the color applied to the log prefix.
+// File flag set to true will display code trace (stack trace).
 type Prefix struct {
 	Text  Level
 	Color Color
 	File  bool
 }
 
-// PrefixText struct to hold the values of the prefixes to be used, and the tail size to add spaces to the end
-// of the prefix
+// PrefixText struct holds the values of the prefixes to be used and the tail size
+// to add spaces to the end of the prefix for alignment.
 type PrefixText struct {
 	value    Level
 	tailSize int
 }
 
+// Prefixes maps each Level to its corresponding Prefix configuration.
 var Prefixes = map[Level]Prefix{
 	Fatal: {
 		Text:  Fatal,
@@ -121,8 +132,8 @@ func defaultTimeFn() (time.Time, string) {
 	return time.Now().UTC(), time.RFC3339
 }
 
-// New returns new Logger instance with predefined writer output and
-// automatically detect terminal coloring support
+// New returns a new Logger instance with a predefined writer output.
+// It automatically detects if the terminal supports coloring.
 func New(out FdWriter) *Logger {
 	scanPrefixes()
 	return &Logger{
@@ -134,9 +145,9 @@ func New(out FdWriter) *Logger {
 	}
 }
 
-// NewWithError returns new Logger instance with predefined writer output and
-// automatically detect terminal coloring support. out would be something like os.Stdout
-// and err would be something like os.Stderr
+// NewWithError returns a new Logger instance with separate writers for standard and error output.
+// It automatically detects if the terminal supports coloring.
+// 'out' would typically be os.Stdout and 'err' would be os.Stderr.
 func NewWithError(out FdWriter, err FdWriter) *Logger {
 	scanPrefixes()
 	return &Logger{
@@ -148,8 +159,8 @@ func NewWithError(out FdWriter, err FdWriter) *Logger {
 	}
 }
 
-// NewWithName {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
-// automatically detect terminal coloring support
+// NewWithName returns a new Logger instance with a specific name and writer output.
+// The name is used as a prefix for all log messages.
 func NewWithName(name string, out FdWriter) *Logger {
 	scanPrefixes()
 	if maxNameSize < len(name) {
@@ -165,8 +176,8 @@ func NewWithName(name string, out FdWriter) *Logger {
 	}
 }
 
-// NewWithNameAndError {(name string out FdWriter) *Logger { returns new Logger instance with predefined writer output and
-// automatically detect terminal coloring support
+// NewWithNameAndError returns a new Logger instance with a specific name and separate
+// writers for standard and error output.
 func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
 	scanPrefixes()
 	if maxNameSize < len(name) {
@@ -182,7 +193,7 @@ func NewWithNameAndError(name string, out FdWriter, err FdWriter) *Logger {
 	}
 }
 
-// WithColor explicitly turn on colorful features on the log
+// WithColor explicitly enables colorful features on the log.
 func (l *Logger) WithColor() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -190,7 +201,7 @@ func (l *Logger) WithColor() FancyLogger {
 	return l
 }
 
-// WithoutColor explicitly turn off colorful features on the log
+// WithoutColor explicitly disables colorful features on the log.
 func (l *Logger) WithoutColor() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -198,7 +209,7 @@ func (l *Logger) WithoutColor() FancyLogger {
 	return l
 }
 
-// WithDebug turn on debugging output on the log to reveal debug and trace level
+// WithDebug enables debugging output to reveal debug and trace level logs.
 func (l *Logger) WithDebug() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -206,7 +217,7 @@ func (l *Logger) WithDebug() FancyLogger {
 	return l
 }
 
-// WithoutDebug turn off debugging output on the log
+// WithoutDebug disables debugging output.
 func (l *Logger) WithoutDebug() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -214,7 +225,7 @@ func (l *Logger) WithoutDebug() FancyLogger {
 	return l
 }
 
-// WithTrace turn on trace output on the log to reveal debug and trace level
+// WithTrace enables trace output to reveal trace level logs.
 func (l *Logger) WithTrace() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -222,7 +233,7 @@ func (l *Logger) WithTrace() FancyLogger {
 	return l
 }
 
-// WithoutTrace turn off trace output on the log
+// WithoutTrace disables trace output.
 func (l *Logger) WithoutTrace() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -230,17 +241,17 @@ func (l *Logger) WithoutTrace() FancyLogger {
 	return l
 }
 
-// IsDebug check the state of debugging output
+// IsDebug checks the current state of debugging output.
 func (l *Logger) IsDebug() bool {
 	return l.debug
 }
 
-// IsTrace check the state of trace output
+// IsTrace checks the current state of trace output.
 func (l *Logger) IsTrace() bool {
 	return l.debug
 }
 
-// WithTimestamp turn on timestamp output on the log
+// WithTimestamp enables timestamp output on the log.
 func (l *Logger) WithTimestamp() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -248,7 +259,7 @@ func (l *Logger) WithTimestamp() FancyLogger {
 	return l
 }
 
-// WithoutTimestamp turn off timestamp output on the log
+// WithoutTimestamp disables timestamp output on the log.
 func (l *Logger) WithoutTimestamp() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -256,7 +267,7 @@ func (l *Logger) WithoutTimestamp() FancyLogger {
 	return l
 }
 
-// Quiet turn off all log output
+// Quiet disables all log output.
 func (l *Logger) Quiet() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -264,7 +275,7 @@ func (l *Logger) Quiet() FancyLogger {
 	return l
 }
 
-// NoQuiet turn on all log output
+// NoQuiet enables all log output (disables quiet mode).
 func (l *Logger) NoQuiet() FancyLogger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -272,17 +283,17 @@ func (l *Logger) NoQuiet() FancyLogger {
 	return l
 }
 
-// IsQuiet check for quiet state
+// IsQuiet checks if the logger is in quiet mode.
 func (l *Logger) IsQuiet() bool {
 	return l.quiet
 }
 
-// SetTimestampColor override the default color for timestamps
+// SetTimestampColor overrides the default color for timestamps.
 func (l *Logger) SetTimestampColor(color Color) {
 	l.timestampColor = &color
 }
 
-// SetDefaultTimeFn override the default timestamp producer
+// SetDefaultTimeFn overrides the default timestamp producer.
 func (l *Logger) SetDefaultTimeFn(timestampFunc TimestampFunc) {
 	l.timestampFn = &timestampFunc
 }
@@ -588,134 +599,142 @@ func (l *Logger) outputMap(prefix Prefix,
 	return
 }
 
-// Fatal print fatal message to output and quit the application with status 1
+// Fatal prints a fatal message to the output and exits the application with status 1.
 func (l *Logger) Fatal(v ...interface{}) {
 	l.output(Prefixes[Fatal], fmt.Sprintln(v...), true, nil)
 	os.Exit(1)
 }
 
-// FatalWithCode print formatted fatal message to output and quit the application
-// with status code provider
+// FatalWithCode prints a fatal message to the output and exits the application
+// with the provided status code.
 func (l *Logger) FatalWithCode(exit int, v ...interface{}) {
 	l.output(Prefixes[Fatal], fmt.Sprintln(v...), true, nil)
 	os.Exit(exit)
 }
 
-// Fatalf print formatted fatal message to output and quit the application
-// with status 1
+// Fatalf prints a formatted fatal message to the output and exits the application with status 1.
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.output(Prefixes[Fatal], fmt.Sprintf(format, v...), true, nil)
 	os.Exit(1)
 }
 
-// FatalWithCodef print formatted fatal message to output and quit the application
-// with status code provider
+// FatalWithCodef prints a formatted fatal message to the output and exits the application
+// with the provided status code.
 func (l *Logger) FatalWithCodef(format string, exit int, v ...interface{}) {
 	l.output(Prefixes[Fatal], fmt.Sprintf(format, v...), true, nil)
 	os.Exit(exit)
 }
 
+// FatalMap logs structured fatal data and exits the application with status 1.
 func (l *Logger) FatalMap(v map[string]interface{}) {
 	l.outputMap(Prefixes[Fatal], v, true, nil, nil)
 	os.Exit(1)
 }
 
+// FatalMapWithCode logs structured fatal data and exits the application with the provided status code.
 func (l *Logger) FatalMapWithCode(exit int, v map[string]interface{}) {
 	l.outputMap(Prefixes[Fatal], v, true, nil, nil)
 	os.Exit(exit)
 }
 
-// Error print error message to output
+// Error prints an error message to the output.
 func (l *Logger) Error(v ...interface{}) {
 	l.output(Prefixes[Error], fmt.Sprintln(v...), true, nil)
 }
 
-// Errorf print formatted error message to output
+// Errorf prints a formatted error message to the output.
 func (l *Logger) Errorf(format string, v ...interface{}) {
 	l.output(Prefixes[Error], fmt.Sprintf(format, v...), true, nil)
 }
 
+// ErrorMap logs structured error data.
 func (l *Logger) ErrorMap(v map[string]interface{}) {
 	l.outputMap(Prefixes[Error], v, true, nil, nil)
 }
 
-// Warn print warning message to output
+// Warn prints a warning message to the output.
 func (l *Logger) Warn(v ...interface{}) {
 	l.output(Prefixes[Warn], fmt.Sprintln(v...), false, nil)
 }
 
-// Warnf print formatted warning message to output
+// Warnf prints a formatted warning message to the output.
 func (l *Logger) Warnf(format string, v ...any) {
 	l.output(Prefixes[Warn], fmt.Sprintf(format, v...), false, nil)
 }
 
+// WarnMap logs structured warning data.
 func (l *Logger) WarnMap(v map[string]interface{}) {
 	l.outputMap(Prefixes[Warn], v, false, nil, nil)
 }
 
-// Info print informational message to output
+// Info prints an informational message to the output.
 func (l *Logger) Info(v ...interface{}) {
 	l.output(Prefixes[Info], fmt.Sprintln(v...), false, nil)
 }
 
-// Infof print formatted informational message to output
+// Infof prints a formatted informational message to the output.
 func (l *Logger) Infof(format string, v ...interface{}) {
 	l.output(Prefixes[Info], fmt.Sprintf(format, v...), false, nil)
 }
 
+// InfoMap logs structured informational data.
 func (l *Logger) InfoMap(v map[string]interface{}) {
 	l.outputMap(Prefixes[Info], v, false, nil, nil)
 }
 
-// Debug print debug message to output if debug output enabled
+// Debug prints a debug message to the output if debug output is enabled.
 func (l *Logger) Debug(v ...interface{}) {
 	if l.IsDebug() {
 		l.output(Prefixes[Debug], fmt.Sprintln(v...), false, nil)
 	}
 }
 
-// Debugf print formatted debug message to output if debug output enabled
+// Debugf prints a formatted debug message to the output if debug output is enabled.
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.IsDebug() {
 		l.output(Prefixes[Debug], fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
+// DebugMap logs structured debug data if debug output is enabled.
 func (l *Logger) DebugMap(v map[string]interface{}) {
 	if l.IsDebug() {
 		l.outputMap(Prefixes[Debug], v, false, nil, nil)
 	}
 }
 
-// Trace print trace message to output if debug output enabled
+// Trace prints a trace message to the output if trace output is enabled.
 func (l *Logger) Trace(v ...interface{}) {
 	if l.IsTrace() {
 		l.output(Prefixes[Trace], fmt.Sprintln(v...), false, nil)
 	}
 }
 
-// Tracef print formatted trace message to output if debug output enabled
+// Tracef prints a formatted trace message to the output if trace output is enabled.
 func (l *Logger) Tracef(format string, v ...interface{}) {
 	if l.IsTrace() {
 		l.output(Prefixes[Trace], fmt.Sprintf(format, v...), false, nil)
 	}
 }
 
-// TraceMap print formatted trace message to output if debug output enabled
+// TraceMap logs structured trace data if trace output is enabled.
 func (l *Logger) TraceMap(v map[string]interface{}) {
 	if l.IsTrace() {
 		l.outputMap(Prefixes[Trace], v, false, nil, nil)
 	}
 }
 
+// Log prints a message with a custom prefix.
 func (l *Logger) Log(prefix Prefix, a ...any) {
 	l.output(prefix, fmt.Sprintln(a...), false, nil)
 }
 
+// Logf prints a formatted message with a custom prefix.
 func (l *Logger) Logf(prefix Prefix, format string, a ...any) {
 	l.output(prefix, fmt.Sprintf(format, a...), false, nil)
 }
 
+// LogMap logs structured data with a custom prefix.
 func (l *Logger) LogMap(prefix Prefix, a map[string]any) {
 	l.outputMap(prefix, a, false, nil, nil)
 }

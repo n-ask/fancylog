@@ -1,13 +1,18 @@
+// Package handlers provides middleware and helper functions for integrating fancylog
+// with various frameworks and libraries like Gin, net/http, and pgx.
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/n-ask/fancylog"
 	"net"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/n-ask/fancylog"
 )
 
-// GinLogger is a middleware function that logs each request using FancyLog
+// GinLogger is a middleware function for the Gin framework that logs each request
+// using the provided FancyHttpLog instance. It captures details like client IP,
+// request URI, protocol, status code, and optionally headers.
 func GinLogger(logger fancylog.FancyHttpLog) gin.HandlerFunc {
 	return func(c *gin.Context) {
 

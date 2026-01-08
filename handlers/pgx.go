@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
-	"github.com/n-ask/fancylog"
 	"regexp"
 	"strings"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/n-ask/fancylog"
 )
 
+// PgLogger defines the interface for a logger used with pgx.
 type PgLogger interface {
 	Debug(msg string, ctx ...interface{})
 	Info(msg string, ctx ...interface{})
@@ -16,14 +18,13 @@ type PgLogger interface {
 	Crit(msg string, ctx ...interface{})
 }
 
-type Ignore struct {
-}
-
+// IgnoreStmtPrefix defines a SQL statement prefix to be ignored by the logger.
 type IgnoreStmtPrefix struct {
 	Text       string
 	IgnoreCase bool
 }
 
+// ContainsPrefix returns true if the given SQL string starts with the defined prefix.
 func (i IgnoreStmtPrefix) ContainsPrefix(sql string) bool {
 	if i.IgnoreCase {
 		return strings.HasPrefix(strings.ToUpper(sql), strings.ToUpper(i.Text))
@@ -31,15 +32,19 @@ func (i IgnoreStmtPrefix) ContainsPrefix(sql string) bool {
 	return strings.HasPrefix(sql, i.Text)
 }
 
+// FancyPGLogger is an implementation of pgx.Logger that uses FancyLogger.
 type FancyPGLogger struct {
 	l       fancylog.FancyLogger
 	ignores *[]IgnoreStmtPrefix
 }
 
+// NewFancyPGLogger creates a new FancyPGLogger instance.
 func NewFancyPGLogger(l fancylog.FancyLogger) *FancyPGLogger {
 	return &FancyPGLogger{l: l}
 }
 
+// SetIgnoreStmtPrefixes configures the logger to ignore SQL statements starting
+// with the provided prefixes.
 func (l *FancyPGLogger) SetIgnoreStmtPrefixes(p []IgnoreStmtPrefix) {
 	l.ignores = &p
 }
@@ -55,6 +60,7 @@ func (l *FancyPGLogger) containsIgnoredPrefix(sql string) bool {
 	return false
 }
 
+// Log implements the pgx.Logger interface.
 func (l *FancyPGLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	if val, ok := data["sql"]; ok {
 		sql := val.(string)
@@ -88,22 +94,27 @@ func (l *FancyPGLogger) Log(ctx context.Context, level pgx.LogLevel, msg string,
 	}
 }
 
+// Debug logs a debug message.
 func (l *FancyPGLogger) Debug(msg string, ctx ...interface{}) {
 	l.l.DebugMap(toMap(msg, ctx))
 }
 
+// Info logs an informational message.
 func (l *FancyPGLogger) Info(msg string, ctx ...interface{}) {
 	l.l.InfoMap(toMap(msg, ctx))
 }
 
+// Warn logs a warning message.
 func (l *FancyPGLogger) Warn(msg string, ctx ...interface{}) {
 	l.l.WarnMap(toMap(msg, ctx))
 }
 
+// Error logs an error message.
 func (l *FancyPGLogger) Error(msg string, ctx ...interface{}) {
 	l.l.ErrorMap(toMap(msg, ctx))
 }
 
+// Crit logs a critical (fatal) message.
 func (l *FancyPGLogger) Crit(msg string, ctx ...interface{}) {
 	l.l.FatalMap(toMap(msg, ctx))
 }

@@ -2,13 +2,15 @@ package fancylog
 
 import "go.uber.org/zap/buffer"
 
+// Color represents an ANSI color escape sequence as a byte slice.
 type Color []byte
 
-// UncheckedCustomColor wrapper, this does not validate color
+// UncheckedCustomColor creates a custom Color from a byte slice without validation.
 func UncheckedCustomColor(b []byte) Color {
 	return Color(b)
 }
 
+// ColorLogger is a wrapper around a pooled buffer for efficient log message construction with colors.
 type ColorLogger struct {
 	*buffer.Buffer
 }
@@ -29,127 +31,130 @@ var (
 	ColorCyan   Color = []byte("\u001B[0;36m")
 	ColorGray   Color = []byte("\u001B[0;37m")
 
+	// ColorFatalRed is a special color for fatal errors (bold, red background).
 	ColorFatalRed    Color = []byte("\u001b[1m\u001b[31m\u001b[7m")
 	ColorDarkOrange  Color = []byte("\u001b[1m\u001b[38;5;202m")
 	ColorBrightWhite Color = []byte("\u001b[1m\u001b[38;5;255m")
 	ColorNicePurple  Color = []byte("\u001b[1m\u001b[38;5;99m")
 )
 
+// NewColorLogger creates a new ColorLogger instance using a buffer from the pool.
 func NewColorLogger() ColorLogger {
 	return ColorLogger{Get()}
 }
 
-// Off apply no color to the data
+// Off resets the color to the terminal default.
 func (cb *ColorLogger) Off() {
 	_, _ = cb.Write(colorOff)
 }
 
-// Red apply red color to the data
+// Red applies red color to the subsequent data.
 func (cb *ColorLogger) Red() {
 	_, _ = cb.Write(ColorRed)
 }
 
-// Green apply green color to the data
+// Green applies green color to the subsequent data.
 func (cb *ColorLogger) Green() {
 	_, _ = cb.Write(ColorGreen)
 }
 
-// Orange apply orange color to the data
+// Orange applies orange color to the subsequent data.
 func (cb *ColorLogger) Orange() {
 	_, _ = cb.Write(ColorOrange)
 }
 
-// Blue apply blue color to the data
+// Blue applies blue color to the subsequent data.
 func (cb *ColorLogger) Blue() {
 	_, _ = cb.Write(ColorBlue)
 }
 
-// Purple apply purple color to the data
+// Purple applies purple color to the subsequent data.
 func (cb *ColorLogger) Purple() {
 	_, _ = cb.Write(ColorPurple)
 }
 
-// Cyan apply cyan color to the data
+// Cyan applies cyan color to the subsequent data.
 func (cb *ColorLogger) Cyan() {
 	_, _ = cb.Write(ColorCyan)
 }
 
-// Gray apply gray color to the data
+// Gray applies gray color to the subsequent data.
 func (cb *ColorLogger) Gray() {
 	_, _ = cb.Write(ColorGray)
 }
 
-// White apply gray color to the data
+// White applies bright white color to the subsequent data.
 func (cb *ColorLogger) White() {
 	_, _ = cb.Write(ColorBrightWhite)
 }
 
-// BrightOrange apply gray color to the data
+// BrightOrange applies dark orange color to the subsequent data.
 func (cb *ColorLogger) BrightOrange() {
 	_, _ = cb.Write(ColorDarkOrange)
 }
 
-// NicePurple apply gray color to the data
+// NicePurple applies a "nice" purple color to the subsequent data.
 func (cb *ColorLogger) NicePurple() {
 	_, _ = cb.Write(ColorNicePurple)
 }
 
-// WriteColor apply given color
+// WriteColor applies the given color to the subsequent data.
 func (cb *ColorLogger) WriteColor(color Color) {
 	_, _ = cb.Write(color)
 }
 
+// AppendSpace appends a single space to the buffer.
 func (cb *ColorLogger) AppendSpace() {
 	_, _ = cb.Write([]byte(" "))
 }
 
-// Append byte slice to buffer
+// Append appends a byte slice to the buffer.
 func (cb *ColorLogger) Append(data []byte) {
 	_, _ = cb.Write(data)
 }
 
-// AppendWithColor byte slice to buffer
+// AppendWithColor appends a byte slice to the buffer wrapped with color escape sequences.
 func (cb *ColorLogger) AppendWithColor(data []byte, color Color) {
 	_, _ = cb.Write(mixer(data, color))
 }
 
-// mixer mix the color on and off byte with the actual data
+// mixer wraps data with color start and reset escape sequences.
 func mixer(data []byte, color []byte) []byte {
 	var result []byte
 	return append(append(append(result, color...), data...), colorOff...)
 }
 
-// Red apply red color to the data
+// Red wraps the data in red color escape sequences.
 func Red(data []byte) []byte {
 	return mixer(data, ColorRed)
 }
 
-// Green apply green color to the data
+// Green wraps the data in green color escape sequences.
 func Green(data []byte) []byte {
 	return mixer(data, ColorGreen)
 }
 
-// Orange apply orange color to the data
+// Orange wraps the data in orange color escape sequences.
 func Orange(data []byte) []byte {
 	return mixer(data, ColorOrange)
 }
 
-// Blue apply blue color to the data
+// Blue wraps the data in blue color escape sequences.
 func Blue(data []byte) []byte {
 	return mixer(data, ColorBlue)
 }
 
-// Purple apply purple color to the data
+// Purple wraps the data in purple color escape sequences.
 func Purple(data []byte) []byte {
 	return mixer(data, ColorPurple)
 }
 
-// Cyan apply cyan color to the data
+// Cyan wraps the data in cyan color escape sequences.
 func Cyan(data []byte) []byte {
 	return mixer(data, ColorCyan)
 }
 
-// Gray apply gray color to the data
+// Gray wraps the data in gray color escape sequences.
 func Gray(data []byte) []byte {
 	return mixer(data, ColorGray)
 }
