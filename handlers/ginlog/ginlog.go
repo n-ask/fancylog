@@ -1,6 +1,10 @@
-// Package handlers provides middleware and helper functions for integrating fancylog
-// with various frameworks and libraries like Gin, net/http, and pgx.
-package handlers
+// Package ginlog provides Gin middleware that logs each request through a
+// fancylog.FancyHttpLog.
+//
+// It is a package of its own so that importing it pulls in Gin and nothing
+// else. These integrations used to share one `handlers` package, which meant
+// a caller wanting Gin middleware also linked gRPC and the Postgres driver.
+package ginlog
 
 import (
 	"net"

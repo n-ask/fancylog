@@ -86,18 +86,53 @@ func main() {
 
 ### Integration with Frameworks
 
+Each integration lives in its own package under `handlers/`, so importing one
+pulls in that framework and nothing else:
+
+| Package | Provides | Pulls in |
+|---|---|---|
+| `handlers/ginlog` | `GinLogger` | Gin |
+| `handlers/httplog` | `LoggingHandler` | httpsnoop |
+| `handlers/grpclog` | Unary/Stream client and server interceptors | gRPC |
+| `handlers/pgxlog` | `FancyPGLogger` for pgx query logging | pgx v5 |
+
+These used to share a single `handlers` package. Go links at package
+granularity, so importing it for Gin middleware also compiled the gRPC and
+Postgres files — putting the whole pgx driver stack into binaries that never
+open a database connection.
+
+**Migrating from `handlers`:** the symbols are unchanged, only their import
+path. `handlers.GinLogger` becomes `ginlog.GinLogger`, `handlers.LoggingHandler`
+becomes `httplog.LoggingHandler`, and the interceptors move to `grpclog`. The
+pgx logger additionally moved from pgx v4 to v5 — see `handlers/pgxlog`.
+
 #### Gin Middleware
 
 ```go
 import (
     "github.com/gin-gonic/gin"
     "github.com/n-ask/fancylog"
-    "github.com/n-ask/fancylog/handlers"
+    "github.com/n-ask/fancylog/handlers/ginlog"
 )
 
 r := gin.New()
 log := fancylog.NewHttpLogger(os.Stdout)
-r.Use(handlers.GinLogger(log))
+r.Use(ginlog.GinLogger(log))
+```
+
+#### net/http Middleware
+
+```go
+import (
+    "net/http"
+    "os"
+
+    "github.com/n-ask/fancylog"
+    "github.com/n-ask/fancylog/handlers/httplog"
+)
+
+log := fancylog.NewHttpLogger(os.Stdout)
+srv := &http.Server{Handler: httplog.LoggingHandler(log, os.Stdout, mux)}
 ```
 
 #### gRPC Interceptors
@@ -106,13 +141,33 @@ r.Use(handlers.GinLogger(log))
 import (
     "google.golang.org/grpc"
     "github.com/n-ask/fancylog"
-    "github.com/n-ask/fancylog/handlers"
+    "github.com/n-ask/fancylog/handlers/grpclog"
 )
 
 log := fancylog.New(os.Stdout)
 s := grpc.NewServer(
-    grpc.UnaryInterceptor(handlers.UnaryServerInterceptor(log, fancylog.Info, myLogFunc, nil)),
+    grpc.UnaryInterceptor(grpclog.UnaryServerInterceptor(log, fancylog.Info, myLogFunc, nil)),
 )
+```
+
+#### pgx Query Logging
+
+Targets pgx **v5**. v4 is not supported: GO-2026-5004 affects every v4 release
+with no fix available, and v4 depends on `pgproto3/v2`, whose GO-2026-4518 is
+likewise unfixed. v5 carries the fix and vendors its own pgproto3.
+
+```go
+import (
+    "github.com/jackc/pgx/v5/tracelog"
+    "github.com/n-ask/fancylog"
+    "github.com/n-ask/fancylog/handlers/pgxlog"
+)
+
+log := fancylog.New(os.Stdout)
+cfg.Tracer = &tracelog.TraceLog{
+    Logger:   pgxlog.NewFancyPGLogger(log),
+    LogLevel: tracelog.LogLevelInfo,
+}
 ```
 
 ### Configuration

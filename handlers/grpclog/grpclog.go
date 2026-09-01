@@ -1,4 +1,10 @@
-package handlers
+// Package grpclog provides gRPC client and server interceptors that log each
+// call through a fancylog.FancyLogger.
+//
+// It is a package of its own so that importing it pulls in gRPC and nothing
+// else. These integrations used to share one `handlers` package, which meant
+// a caller wanting interceptors also linked Gin and the Postgres driver.
+package grpclog
 
 import (
 	"context"

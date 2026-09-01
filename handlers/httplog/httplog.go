@@ -1,4 +1,11 @@
-package handlers
+// Package httplog provides a net/http middleware that logs each request
+// through a fancylog.FancyHttpLog.
+//
+// It is a package of its own so that importing it pulls in httpsnoop and
+// nothing else. These integrations used to share one `handlers` package,
+// which meant a caller wanting HTTP logging also linked gRPC and the
+// Postgres driver.
+package httplog
 
 import (
 	"bufio"
